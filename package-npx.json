@@ -1,0 +1,56 @@
+{
+  "name": "simple-bill-worker",
+  "version": "1.0.0",
+  "description": "Simple Billing System for Cloudflare Workers - Deploy via npx",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "start": "wrangler dev",
+    "build": "node scripts/build.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "cloudflare",
+    "workers",
+    "billing", 
+    "invoice",
+    "pdf",
+    "npx",
+    "edge-computing",
+    "serverless"
+  ],
+  "author": "Simple Bill Team <info@simplebill.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/simple-bill-worker.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/simple-bill-worker/issues"
+  },
+  "homepage": "https://github.com/yourusername/simple-bill-worker#readme",
+  "bin": {
+    "simple-bill": "./bin/cli.js",
+    "simple-bill-worker": "./bin/cli.js"
+  },
+  "files": [
+    "src/",
+    "bin/",
+    "scripts/",
+    "wrangler.toml",
+    "README.md",
+    "LICENSE"
+  ],
+  "devDependencies": {
+    "wrangler": "^3.22.1"
+  },
+  "dependencies": {
+    "@cloudflare/workers-types": "^4.20231218.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "preferGlobal": true
+}
