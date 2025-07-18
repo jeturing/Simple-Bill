@@ -7,10 +7,12 @@ ENVIRONMENT = "production"
 
 [[kv_namespaces]]
 binding = "BILL_KV"
-id = "YOUR_KV_NAMESPACE_ID"
-preview_id = "YOUR_PREVIEW_KV_NAMESPACE_ID"
+id = "b5f8a23e7d06c2de5ef515ae93e16016"
 
 [build]
 command = "npm run build"
 cwd = "./"
 watch_dir = "src"
+
+# wrangler.toml
+name = 'bill'
