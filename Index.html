@@ -1,0 +1,1451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Simple Billing System - Mobile Friendly</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+<style>
+  tbody::-webkit-scrollbar {
+    height: 6px;
+  }
+  tbody::-webkit-scrollbar-thumb {
+    background-color: #a0aec0;
+    border-radius: 3px;
+  }
+  .sidebar-transition {
+    transition: transform 0.3s ease-in-out;
+  }
+  .content-transition {
+    transition: margin-left 0.3s ease-in-out;
+  }
+  
+  /* Mobile-first responsive design */
+  @media (max-width: 768px) {
+    .sidebar {
+      transform: translateX(-100%);
+    }
+    .main-content-mobile {
+      margin-left: 0 !important;
+      padding: 0.5rem !important;
+    }
+    .step-indicator {
+      font-size: 0.875rem;
+    }
+  }
+  
+  /* PDF Preview Styles */
+  .pdf-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    z-index: 1000;
+  }
+  
+  .pdf-modal.active {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  .pdf-content {
+    background: white;
+    border-radius: 0.5rem;
+    width: 95%;
+    height: 95%;
+    max-width: 900px;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .pdf-header {
+    padding: 1rem;
+    border-bottom: 1px solid #e5e7eb;
+    display: flex;
+    justify-content: between;
+    align-items: center;
+  }
+  
+  .pdf-body {
+    flex: 1;
+    overflow: auto;
+    padding: 1rem;
+  }
+  
+  .pdf-preview {
+    width: 100%;
+    min-height: 600px;
+    border: 1px solid #e5e7eb;
+    background: #f9fafb;
+    padding: 2rem;
+    font-family: 'Times New Roman', serif;
+  }
+  
+  @media (max-width: 768px) {
+    .pdf-content {
+      width: 100%;
+      height: 100%;
+      border-radius: 0;
+    }
+    .pdf-preview {
+      padding: 1rem;
+      font-size: 0.875rem;
+    }
+  }
+  
+  /* Step Wizard Styles */
+  .step-wizard {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 2rem;
+  }
+  
+  .step {
+    flex: 1;
+    text-align: center;
+    position: relative;
+    padding: 0.5rem;
+  }
+  
+  .step::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: -50%;
+    width: 100%;
+    height: 2px;
+    background: #e5e7eb;
+    transform: translateY(-50%);
+  }
+  
+  .step:last-child::after {
+    display: none;
+  }
+  
+  .step.active {
+    color: #3b82f6;
+    font-weight: 600;
+  }
+  
+  .step.active::after {
+    background: #3b82f6;
+  }
+  
+  .step.completed {
+    color: #10b981;
+  }
+  
+  .step.completed::after {
+    background: #10b981;
+  }
+  
+  @media (max-width: 768px) {
+    .step {
+      font-size: 0.75rem;
+      padding: 0.25rem;
+    }
+  }
+</style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+<!-- Sidebar -->
+<div id="sidebar" class="fixed left-0 top-0 h-full w-64 bg-gray-800 text-white p-4 sidebar-transition z-10 sidebar">
+  <div class="flex items-center justify-between mb-8">
+    <h1 class="text-xl font-bold">Simple Billing</h1>
+    <button id="toggleSidebar" class="text-white hover:text-gray-300">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+      </svg>
+    </button>
+  </div>
+  
+  <nav class="space-y-2">
+    <button onclick="showSection('dashboard')" class="w-full text-left px-4 py-3 rounded hover:bg-gray-700 nav-item" data-section="dashboard">
+      <div class="flex items-center">
+        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z"></path>
+        </svg>
+        Dashboard
+      </div>
+    </button>
+    
+    <button onclick="showSection('clients')" class="w-full text-left px-4 py-3 rounded hover:bg-gray-700 nav-item" data-section="clients">
+      <div class="flex items-center">
+        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
+        </svg>
+        Clients
+      </div>
+    </button>
+    
+    <button onclick="showSection('products')" class="w-full text-left px-4 py-3 rounded hover:bg-gray-700 nav-item" data-section="products">
+      <div class="flex items-center">
+        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+        </svg>
+        Products
+      </div>
+    </button>
+    
+    <button onclick="showSection('invoice')" class="w-full text-left px-4 py-3 rounded hover:bg-gray-700 nav-item" data-section="invoice">
+      <div class="flex items-center">
+        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+        </svg>
+        Create Invoice
+      </div>
+    </button>
+    
+    <button onclick="showSection('history')" class="w-full text-left px-4 py-3 rounded hover:bg-gray-700 nav-item" data-section="history">
+      <div class="flex items-center">
+        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+        </svg>
+        History
+      </div>
+    </button>
+
+    <button onclick="showSection('company')" class="w-full text-left px-4 py-3 rounded hover:bg-gray-700 nav-item" data-section="company">
+      <div class="flex items-center">
+        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z"></path>
+        </svg>
+        Company Details
+      </div>
+    </button>
+  </nav>
+</div>
+
+<!-- Mobile menu button -->
+<button id="mobileMenuBtn" class="fixed top-4 left-4 z-20 bg-gray-800 text-white p-2 rounded md:hidden">
+  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+  </svg>
+</button>
+
+<!-- Main Content -->
+<div id="mainContent" class="content-transition ml-64 p-6 main-content-mobile">
+  
+  <!-- Dashboard Section -->
+  <section id="dashboard-section" class="section-content">
+    <div class="bg-white rounded-lg shadow p-6">
+      <h2 class="text-2xl font-bold mb-6">Dashboard</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div class="bg-blue-50 p-6 rounded-lg">
+          <div class="flex items-center">
+            <div class="flex-shrink-0">
+              <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
+              </svg>
+            </div>
+            <div class="ml-4">
+              <p class="text-sm font-medium text-gray-500">Total Clients</p>
+              <p id="totalClients" class="text-2xl font-semibold text-gray-900">0</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="bg-green-50 p-6 rounded-lg">
+          <div class="flex items-center">
+            <div class="flex-shrink-0">
+              <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+              </svg>
+            </div>
+            <div class="ml-4">
+              <p class="text-sm font-medium text-gray-500">Total Products</p>
+              <p id="totalProducts" class="text-2xl font-semibold text-gray-900">0</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="bg-yellow-50 p-6 rounded-lg">
+          <div class="flex items-center">
+            <div class="flex-shrink-0">
+              <svg class="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+              </svg>
+            </div>
+            <div class="ml-4">
+              <p class="text-sm font-medium text-gray-500">Total Invoices</p>
+              <p id="totalInvoices" class="text-2xl font-semibold text-gray-900">0</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="bg-purple-50 p-6 rounded-lg">
+          <div class="flex items-center">
+            <div class="flex-shrink-0">
+              <svg class="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
+              </svg>
+            </div>
+            <div class="ml-4">
+              <p class="text-sm font-medium text-gray-500">Total Sales</p>
+              <p id="totalSales" class="text-2xl font-semibold text-gray-900">$0.00</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Quick Start Guide for Non-Technical Users -->
+      <div class="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
+        <h3 class="text-lg font-semibold text-blue-800 mb-4">🚀 Quick Start Guide</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="text-center">
+            <div class="bg-blue-100 rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-2">
+              <span class="text-blue-600 font-bold">1</span>
+            </div>
+            <h4 class="font-medium text-blue-800">Add Clients</h4>
+            <p class="text-sm text-blue-600">Start by adding your customers</p>
+          </div>
+          <div class="text-center">
+            <div class="bg-blue-100 rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-2">
+              <span class="text-blue-600 font-bold">2</span>
+            </div>
+            <h4 class="font-medium text-blue-800">Add Products</h4>
+            <p class="text-sm text-blue-600">Create your product catalog</p>
+          </div>
+          <div class="text-center">
+            <div class="bg-blue-100 rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-2">
+              <span class="text-blue-600 font-bold">3</span>
+            </div>
+            <h4 class="font-medium text-blue-800">Create Invoice</h4>
+            <p class="text-sm text-blue-600">Generate professional invoices</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Clients Section -->
+  <section id="clients-section" class="section-content hidden">
+    <div class="bg-white rounded-lg shadow p-6">
+      <div class="flex justify-between items-center mb-6">
+        <h2 class="text-2xl font-bold">Client Management</h2>
+        <div class="text-sm text-gray-500">Step 1 of 3: Add Clients</div>
+      </div>
+      
+      <!-- Simple Form for adding/editing clients -->
+      <div class="bg-gray-50 p-4 rounded-lg mb-6">
+        <h3 class="text-lg font-semibold mb-4" id="clientFormTitle">Add New Client</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <input id="inputClientName" type="text" placeholder="Client name *" class="border border-gray-300 rounded px-3 py-2" />
+          <input id="inputClientEmail" type="email" placeholder="Email (optional)" class="border border-gray-300 rounded px-3 py-2" />
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+          <input id="inputClientPhone" type="tel" placeholder="Phone (optional)" class="border border-gray-300 rounded px-3 py-2" />
+          <input id="inputClientAddress" type="text" placeholder="Address (optional)" class="border border-gray-300 rounded px-3 py-2" />
+        </div>
+        <div class="flex gap-2 mt-4">
+          <button id="btnSaveClient" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded font-medium">Save Client</button>
+          <button id="btnCancelClient" class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded hidden">Cancel</button>
+        </div>
+      </div>
+      
+      <!-- Mobile-friendly client list -->
+      <div class="overflow-x-auto">
+        <div class="hidden md:block">
+          <table class="w-full table-auto border-collapse border border-gray-300">
+            <thead>
+              <tr class="bg-gray-200">
+                <th class="border border-gray-300 px-4 py-2">Name</th>
+                <th class="border border-gray-300 px-4 py-2">Email</th>
+                <th class="border border-gray-300 px-4 py-2">Phone</th>
+                <th class="border border-gray-300 px-4 py-2">Address</th>
+                <th class="border border-gray-300 px-4 py-2">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyClients">
+              <!-- Dynamic clients -->
+            </tbody>
+          </table>
+        </div>
+        
+        <!-- Mobile card view -->
+        <div class="block md:hidden" id="mobileClientsList">
+          <!-- Dynamic mobile client cards -->
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Products Section -->
+  <section id="products-section" class="section-content hidden">
+    <div class="bg-white rounded-lg shadow p-6">
+      <div class="flex justify-between items-center mb-6">
+        <h2 class="text-2xl font-bold">Product Management</h2>
+        <div class="text-sm text-gray-500">Step 2 of 3: Add Products</div>
+      </div>
+      
+      <!-- Simple form for adding/editing products -->
+      <div class="bg-gray-50 p-4 rounded-lg mb-6">
+        <h3 class="text-lg font-semibold mb-4" id="productFormTitle">Add New Product</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <input id="inputProductName" type="text" placeholder="Product name *" class="border border-gray-300 rounded px-3 py-2" />
+          <input id="inputProductPrice" type="number" min="0" step="0.01" placeholder="Unit price *" class="border border-gray-300 rounded px-3 py-2" />
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+          <input id="inputProductCode" type="text" placeholder="Product code (optional)" class="border border-gray-300 rounded px-3 py-2" />
+          <input id="inputProductStock" type="number" min="0" placeholder="Stock quantity (optional)" class="border border-gray-300 rounded px-3 py-2" />
+        </div>
+        <div class="mt-4">
+          <textarea id="inputProductDescription" placeholder="Description (optional)" class="w-full border border-gray-300 rounded px-3 py-2 h-20"></textarea>
+        </div>
+        <div class="flex gap-2 mt-4">
+          <button id="btnSaveProduct" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded font-medium">Save Product</button>
+          <button id="btnCancelProduct" class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded hidden">Cancel</button>
+        </div>
+      </div>
+      
+      <!-- Mobile-friendly product list -->
+      <div class="overflow-x-auto">
+        <div class="hidden md:block">
+          <table class="w-full table-auto border-collapse border border-gray-300">
+            <thead>
+              <tr class="bg-gray-200">
+                <th class="border border-gray-300 px-4 py-2">Code</th>
+                <th class="border border-gray-300 px-4 py-2">Name</th>
+                <th class="border border-gray-300 px-4 py-2">Price</th>
+                <th class="border border-gray-300 px-4 py-2">Stock</th>
+                <th class="border border-gray-300 px-4 py-2">Description</th>
+                <th class="border border-gray-300 px-4 py-2">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyProducts">
+              <!-- Dynamic products -->
+            </tbody>
+          </table>
+        </div>
+        
+        <!-- Mobile card view -->
+        <div class="block md:hidden" id="mobileProductsList">
+          <!-- Dynamic mobile product cards -->
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Create Invoice Section -->
+  <section id="invoice-section" class="section-content hidden">
+    <div class="bg-white rounded-lg shadow p-6">
+      <div class="flex justify-between items-center mb-6">
+        <h2 class="text-2xl font-bold">Create Invoice</h2>
+        <div class="text-sm text-gray-500">Step 3 of 3: Generate Invoice</div>
+      </div>
+      
+      <!-- Step-by-step wizard -->
+      <div class="step-wizard mb-8">
+        <div class="step active" id="step1">
+          <div class="step-number">1</div>
+          <div class="step-title">Client Info</div>
+        </div>
+        <div class="step" id="step2">
+          <div class="step-number">2</div>
+          <div class="step-title">Add Items</div>
+        </div>
+        <div class="step" id="step3">
+          <div class="step-number">3</div>
+          <div class="step-title">Review & Save</div>
+        </div>
+      </div>
+      
+      <!-- Step 1: Client Selection -->
+      <div id="invoiceStep1" class="step-content">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <div>
+            <label class="block font-semibold mb-2" for="invoiceCode">Invoice Number</label>
+            <input id="invoiceCode" type="text" readonly class="w-full border border-gray-300 rounded px-3 py-2 bg-gray-100" />
+          </div>
+          <div>
+            <label class="block font-semibold mb-2" for="invoiceClient">Select Client *</label>
+            <select id="invoiceClient" class="w-full border border-gray-300 rounded px-3 py-2">
+              <option value="">-- Select a client --</option>
+            </select>
+          </div>
+        </div>
+        <button onclick="goToStep(2)" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded font-medium">Next: Add Items →</button>
+      </div>
+      
+      <!-- Step 2: Add Products -->
+      <div id="invoiceStep2" class="step-content hidden">
+        <div class="bg-gray-50 p-4 rounded-lg mb-6">
+          <h3 class="text-lg font-semibold mb-4">Add Products to Invoice</h3>
+          <div class="flex gap-2 mb-4 flex-wrap">
+            <select id="selectProducts" class="flex-grow min-w-0 border border-gray-300 rounded px-3 py-2">
+              <option value="">-- Select a product --</option>
+            </select>
+            <button id="btnAddManualLine" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded whitespace-nowrap">Add Manual Item</button>
+          </div>
+        </div>
+        
+        <!-- Invoice items table -->
+        <div class="overflow-x-auto mb-6">
+          <table class="w-full table-auto border-collapse border border-gray-300">
+            <thead>
+              <tr class="bg-gray-200">
+                <th class="border border-gray-300 px-2 py-2">Item</th>
+                <th class="border border-gray-300 px-2 py-2 w-20">Qty</th>
+                <th class="border border-gray-300 px-2 py-2 w-28">Unit Price</th>
+                <th class="border border-gray-300 px-2 py-2 w-28">Total</th>
+                <th class="border border-gray-300 px-2 py-2 w-12">Remove</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyInvoiceProducts">
+              <!-- Dynamic invoice lines -->
+            </tbody>
+          </table>
+        </div>
+        
+        <div class="flex gap-2">
+          <button onclick="goToStep(1)" class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded">← Previous</button>
+          <button onclick="goToStep(3)" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded font-medium">Next: Review →</button>
+        </div>
+      </div>
+      
+      <!-- Step 3: Review and Totals -->
+      <div id="invoiceStep3" class="step-content hidden">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="bg-gray-50 p-4 rounded-lg">
+            <h3 class="text-lg font-semibold mb-4">Discounts & Tax</h3>
+            <div class="space-y-3">
+              <div>
+                <label class="block text-sm font-medium mb-1">Discount (%)</label>
+                <input id="inputDiscountPercent" type="number" min="0" max="100" step="0.1" value="0" class="w-full border border-gray-300 rounded px-3 py-2" />
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-1">Discount (Fixed Amount)</label>
+                <input id="inputDiscountAmount" type="number" min="0" step="0.01" value="0" class="w-full border border-gray-300 rounded px-3 py-2" />
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-1">Tax (%)</label>
+                <input id="inputTax" type="number" min="0" max="100" step="0.1" value="0" class="w-full border border-gray-300 rounded px-3 py-2" />
+              </div>
+            </div>
+          </div>
+          
+          <div class="bg-blue-50 p-4 rounded-lg">
+            <h3 class="text-lg font-semibold mb-4">Invoice Summary</h3>
+            <div class="space-y-2">
+              <div class="flex justify-between">
+                <span>Subtotal:</span>
+                <span id="subtotalInvoice" class="font-semibold">$0.00</span>
+              </div>
+              <div class="flex justify-between text-red-600">
+                <span>Discount:</span>
+                <span id="discountInvoice" class="font-semibold">-$0.00</span>
+              </div>
+              <div class="flex justify-between">
+                <span>Tax:</span>
+                <span id="taxInvoice" class="font-semibold">$0.00</span>
+              </div>
+              <hr class="my-2">
+              <div class="flex justify-between text-lg font-bold">
+                <span>TOTAL:</span>
+                <span id="totalInvoice" class="text-blue-600">$0.00</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="flex gap-2 mt-6">
+          <button onclick="goToStep(2)" class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded">← Previous</button>
+          <button id="btnSaveInvoice" class="bg-green-700 hover:bg-green-800 text-white px-8 py-3 rounded font-semibold">Save Invoice & Preview PDF</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- History Section -->
+  <section id="history-section" class="section-content hidden">
+    <div class="bg-white rounded-lg shadow p-6">
+      <h2 class="text-2xl font-bold mb-6">Invoice History</h2>
+      
+      <div class="overflow-x-auto">
+        <div class="hidden md:block">
+          <table class="w-full table-auto border-collapse border border-gray-300">
+            <thead>
+              <tr class="bg-gray-200">
+                <th class="border border-gray-300 px-4 py-2">Invoice #</th>
+                <th class="border border-gray-300 px-4 py-2">Client</th>
+                <th class="border border-gray-300 px-4 py-2">Date</th>
+                <th class="border border-gray-300 px-4 py-2">Subtotal</th>
+                <th class="border border-gray-300 px-4 py-2">Discount</th>
+                <th class="border border-gray-300 px-4 py-2">Tax</th>
+                <th class="border border-gray-300 px-4 py-2">Total</th>
+                <th class="border border-gray-300 px-4 py-2">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyInvoicesHistory">
+              <!-- Saved invoices -->
+            </tbody>
+          </table>
+        </div>
+        
+        <!-- Mobile card view for history -->
+        <div class="block md:hidden" id="mobileInvoicesHistory">
+          <!-- Dynamic mobile invoice cards -->
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Company Details Section -->
+  <section id="company-section" class="section-content hidden">
+    <div class="bg-white rounded-lg shadow p-6">
+      <h2 class="text-2xl font-bold mb-6">Company Details</h2>
+      
+      <!-- Form for company details -->
+      <div class="bg-gray-50 p-4 rounded-lg mb-6">
+        <h3 class="text-lg font-semibold mb-4">Update Company Information</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <input id="inputCompanyName" type="text" placeholder="Company Name *" class="border border-gray-300 rounded px-3 py-2" />
+          <input id="inputCompanyEmail" type="email" placeholder="Email *" class="border border-gray-300 rounded px-3 py-2" />
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+          <input id="inputCompanyPhone" type="tel" placeholder="Phone *" class="border border-gray-300 rounded px-3 py-2" />
+          <input id="inputCompanyAddress" type="text" placeholder="Address *" class="border border-gray-300 rounded px-3 py-2" />
+        </div>
+        <div class="mt-4">
+          <label class="block text-sm font-medium mb-1">Upload Logo</label>
+          <input id="inputCompanyLogo" type="file" accept="image/*" class="border border-gray-300 rounded px-3 py-2" />
+        </div>
+        <div class="flex gap-2 mt-4">
+          <button id="btnSaveCompany" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded font-medium">Save Details</button>
+          <button id="btnCancelCompany" class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded hidden">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- PDF Preview Modal -->
+<div id="pdfModal" class="pdf-modal">
+  <div class="pdf-content">
+    <div class="pdf-header">
+      <h3 class="text-xl font-semibold">Invoice Preview</h3>
+      <div class="flex gap-2">
+        <button id="btnDownloadPDF" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">Download PDF</button>
+        <button id="btnPrintPDF" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">Print</button>
+        <button id="btnClosePDF" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded">Close</button>
+      </div>
+    </div>
+    <div class="pdf-body">
+      <div id="pdfPreview" class="pdf-preview">
+        <!-- PDF preview content will be inserted here -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const { jsPDF } = window.jspdf;
+
+  // Base64 logo
+  const logoBase64 = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAoHBwkHBgoICAgLCgoLDhgQDg0NDh0VFhEYFh0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR3/wAALCAABAAEBAREA/8QAGwAAAQUBAQAAAAAAAAAAAAAAAAMEBQYHCAL/xAAwEAACAQIEAwYEBgMAAAAAAAAAAQIDEQQFEzE2MRNBUWEHFDJSgZGhExQjM1LB0TNykrLhFhPh8BUjQ//EABkBAQADAQEAAAAAAAAAAAAAAAABAgMEBf/EACQRAQACAQMEAgMAAAAAAAAAAAABAhEDBCEVEjETQVFhIoFx/9oADAMBAAIRAxEAPwDDTrOpSvyaQmxM2jq7DkQHXVZVlPAkKEDv2sk4lSpHS5O9YzhHZ5tgJZ4dUpw6lmqMfAVNj94rEiRmEK6UlIrRJMJZMD5YSZJIY9q41DY12vVmvYKNg+PHIHqjtTpoRILFp2RBxqWjxyG5P7q50cNQkjHuovDNr4nGv8Ac9KYoQmZBHUAcbmgXtQVRgIoN90EU9c/MHt25r6Z3RPhTpWlnzDye6X8FQ0OhCcrljXqBhl+2tCk5Lk86UWoI3jCHHXcYBqVVXAwPRRzDOD/2Q==";
+
+  // Keys for localStorage
+  const STORAGE_KEYS = {
+    CLIENTES: 'app_factura_clientes',
+    PRODUCTOS: 'app_factura_productos',
+    FACTURAS: 'app_factura_facturas',
+    CODIGO: 'app_factura_codigo'
+  };
+
+  // Variables globales
+  let clientes = [];
+  let productos = [];
+  let facturas = [];
+  let codigoFactura = 1;
+  let editandoCliente = null;
+  let editandoProducto = null;
+  let sidebarVisible = true;
+
+  // DOM Elements
+  const elements = {
+    // Sidebar
+    sidebar: document.getElementById('sidebar'),
+    toggleSidebar: document.getElementById('toggleSidebar'),
+    mobileMenuBtn: document.getElementById('mobileMenuBtn'),
+    mainContent: document.getElementById('mainContent'),
+    
+    // Dashboard
+    totalClientes: document.getElementById('totalClientes'),
+    totalProductos: document.getElementById('totalProductos'),
+    totalFacturas: document.getElementById('totalFacturas'),
+    ventasTotales: document.getElementById('ventasTotales'),
+    
+    // Clientes
+    inputClienteNombre: document.getElementById('inputClienteNombre'),
+    inputClienteEmail: document.getElementById('inputClienteEmail'),
+    inputClienteTelefono: document.getElementById('inputClienteTelefono'),
+    inputClienteDireccion: document.getElementById('inputClienteDireccion'),
+    btnGuardarCliente: document.getElementById('btnGuardarCliente'),
+    btnCancelarCliente: document.getElementById('btnCancelarCliente'),
+    clienteFormTitle: document.getElementById('clienteFormTitle'),
+    tbodyClientes: document.getElementById('tbodyClientes'),
+    
+    // Productos
+    inputProductoNombre: document.getElementById('inputProductoNombre'),
+    inputProductoPrecio: document.getElementById('inputProductoPrecio'),
+    inputProductoCodigo: document.getElementById('inputProductoCodigo'),
+    inputProductoStock: document.getElementById('inputProductoStock'),
+    inputProductoDescripcion: document.getElementById('inputProductoDescripcion'),
+    btnGuardarProducto: document.getElementById('btnGuardarProducto'),
+    btnCancelarProducto: document.getElementById('btnCancelarProducto'),
+    productoFormTitle: document.getElementById('productoFormTitle'),
+    tbodyProductos: document.getElementById('tbodyProductos'),
+    
+    // Facturas
+    codigoFactura: document.getElementById('codigoFactura'),
+    facturaCliente: document.getElementById('facturaCliente'),
+    selectProductos: document.getElementById('selectProductos'),
+    btnAgregarLinea: document.getElementById('btnAgregarLinea'),
+    tbodyFacturaProductos: document.getElementById('tbodyFacturaProductos'),
+    inputDescuentoPorcentaje: document.getElementById('inputDescuentoPorcentaje'),
+    inputDescuentoMonto: document.getElementById('inputDescuentoMonto'),
+    inputImpuesto: document.getElementById('inputImpuesto'),
+    subtotalFactura: document.getElementById('subtotalFactura'),
+    descuentoFactura: document.getElementById('descuentoFactura'),
+    impuestoFactura: document.getElementById('impuestoFactura'),
+    totalFactura: document.getElementById('totalFactura'),
+    btnGuardarFactura: document.getElementById('btnGuardarFactura'),
+    
+    // Historial
+    tbodyFacturasGuardadas: document.getElementById('tbodyFacturasGuardadas'),
+
+    // Company Details
+    inputCompanyName: document.getElementById('inputCompanyName'),
+    inputCompanyEmail: document.getElementById('inputCompanyEmail'),
+    inputCompanyPhone: document.getElementById('inputCompanyPhone'),
+    inputCompanyAddress: document.getElementById('inputCompanyAddress'),
+    inputCompanyLogo: document.getElementById('inputCompanyLogo'),
+    btnSaveCompany: document.getElementById('btnSaveCompany'),
+    btnCancelCompany: document.getElementById('btnCancelCompany')
+  };
+
+  // Funciones de navegación
+  function showSection(sectionName) {
+    // Ocultar todas las secciones
+    document.querySelectorAll('.section-content').forEach(section => {
+      section.classList.add('hidden');
+    });
+    
+    // Mostrar la sección seleccionada
+    document.getElementById(`${sectionName}-section`).classList.remove('hidden');
+    
+    // Actualizar navegación activa
+    document.querySelectorAll('.nav-item').forEach(item => {
+      item.classList.remove('bg-gray-700');
+    });
+    document.querySelector(`[data-section="${sectionName}"]`).classList.add('bg-gray-700');
+    
+    // Actualizar datos según la sección
+    if (sectionName === 'dashboard') {
+      actualizarDashboard();
+    }
+  }
+
+  function toggleSidebar() {
+    sidebarVisible = !sidebarVisible;
+    if (sidebarVisible) {
+      elements.sidebar.style.transform = 'translateX(0)';
+      elements.mainContent.style.marginLeft = '16rem';
+    } else {
+      elements.sidebar.style.transform = 'translateX(-100%)';
+      elements.mainContent.style.marginLeft = '0';
+    }
+  }
+
+  // Funciones de almacenamiento
+  function guardarDatos() {
+    try {
+      localStorage.setItem(STORAGE_KEYS.CLIENTES, JSON.stringify(clientes));
+      localStorage.setItem(STORAGE_KEYS.PRODUCTOS, JSON.stringify(productos));
+      localStorage.setItem(STORAGE_KEYS.FACTURAS, JSON.stringify(facturas));
+      localStorage.setItem(STORAGE_KEYS.CODIGO, codigoFactura.toString());
+
+      // Guardar en archivo JSON
+      guardarDatosEnJSON();
+    } catch (error) {
+      console.error('Error al guardar datos en localStorage o JSON:', error);
+    }
+  }
+
+  function cargarDatos() {
+    try {
+      clientes = JSON.parse(localStorage.getItem(STORAGE_KEYS.CLIENTES) || '[]');
+      productos = JSON.parse(localStorage.getItem(STORAGE_KEYS.PRODUCTOS) || '[]');
+      facturas = JSON.parse(localStorage.getItem(STORAGE_KEYS.FACTURAS) || '[]');
+      codigoFactura = parseInt(localStorage.getItem(STORAGE_KEYS.CODIGO) || '1');
+    } catch (error) {
+      console.error('Error al cargar datos de localStorage:', error);
+      clientes = [];
+      productos = [];
+      facturas = [];
+      codigoFactura = 1;
+    }
+  }
+
+  // Funciones para exportar datos a un archivo JSON
+  function exportarDatosJSON() {
+    const datos = {
+      clientes,
+      productos,
+      facturas,
+      codigoFactura
+    };
+
+    const blob = new Blob([JSON.stringify(datos, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+
+    const enlace = document.createElement('a');
+    enlace.href = url;
+    enlace.download = 'datos_facturacion.json';
+    enlace.click();
+
+    URL.revokeObjectURL(url);
+  }
+
+  // Función para guardar datos en un archivo JSON
+  function guardarDatosEnJSON() {
+    const datos = {
+      clientes,
+      productos,
+      facturas,
+      codigoFactura
+    };
+
+    const blob = new Blob([JSON.stringify(datos, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+
+    const enlace = document.createElement('a');
+    enlace.href = url;
+    enlace.download = 'datos_facturacion.json';
+    enlace.click();
+
+    URL.revokeObjectURL(url);
+  }
+
+  // Funciones del Dashboard
+  function actualizarDashboard() {
+    elements.totalClientes.textContent = clientes.length;
+    elements.totalProductos.textContent = productos.length;
+    elements.totalFacturas.textContent = facturas.length;
+    
+    const ventasTotal = facturas.reduce((total, factura) => total + factura.total, 0);
+    elements.ventasTotales.textContent = `$${ventasTotal.toFixed(2)}`;
+  }
+
+  // Funciones de Clientes
+  function limpiarFormCliente() {
+    elements.inputClienteNombre.value = '';
+    elements.inputClienteEmail.value = '';
+    elements.inputClienteTelefono.value = '';
+    elements.inputClienteDireccion.value = '';
+    elements.clienteFormTitle.textContent = 'Agregar Nuevo Cliente';
+    elements.btnGuardarCliente.textContent = 'Guardar Cliente';
+    elements.btnCancelarCliente.classList.add('hidden');
+    editandoCliente = null;
+  }
+
+  // Funciones CRUD para Clientes
+  function guardarCliente() {
+    const nombre = elements.inputClienteNombre.value.trim();
+    const email = elements.inputClienteEmail.value.trim();
+    const telefono = elements.inputClienteTelefono.value.trim();
+    const direccion = elements.inputClienteDireccion.value.trim();
+
+    if (!nombre) {
+      alert('El nombre del cliente es requerido');
+      return;
+    }
+
+    const cliente = { nombre, email, telefono, direccion };
+
+    if (editandoCliente !== null) {
+      clientes[editandoCliente] = cliente;
+      alert('Cliente actualizado correctamente');
+    } else {
+      clientes.push(cliente);
+      alert('Cliente agregado correctamente');
+    }
+
+    guardarDatos();
+    renderClientes();
+    renderClientesSelect();
+    limpiarFormCliente();
+  }
+
+  function eliminarCliente(index) {
+    if (confirm('¿Está seguro de eliminar este cliente?')) {
+      clientes.splice(index, 1);
+      guardarDatos();
+      renderClientes();
+      renderClientesSelect();
+      alert('Cliente eliminado correctamente');
+    }
+  }
+
+  function editarCliente(index) {
+    const cliente = clientes[index];
+    elements.inputClienteNombre.value = cliente.nombre;
+    elements.inputClienteEmail.value = cliente.email || '';
+    elements.inputClienteTelefono.value = cliente.telefono || '';
+    elements.inputClienteDireccion.value = cliente.direccion || '';
+    elements.clienteFormTitle.textContent = 'Editar Cliente';
+    elements.btnGuardarCliente.textContent = 'Actualizar Cliente';
+    elements.btnCancelarCliente.classList.remove('hidden');
+    editandoCliente = index;
+  }
+
+  function renderClientes() {
+    elements.tbodyClientes.innerHTML = '';
+    if (clientes.length === 0) {
+      elements.tbodyClientes.innerHTML = '<tr><td colspan="5" class="text-center py-4">No hay clientes registrados</td></tr>';
+      return;
+    }
+
+    clientes.forEach((cliente, index) => {
+      const row = document.createElement('tr');
+      row.classList.add('hover:bg-gray-50');
+      row.innerHTML = `
+        <td class="border border-gray-300 px-4 py-2">${cliente.nombre}</td>
+        <td class="border border-gray-300 px-4 py-2">${cliente.email || '-'}</td>
+        <td class="border border-gray-300 px-4 py-2">${cliente.telefono || '-'}</td>
+        <td class="border border-gray-300 px-4 py-2">${cliente.direccion || '-'}</td>
+        <td class="border border-gray-300 px-4 py-2">
+          <button onclick="editarCliente(${index})" class="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded mr-1">Editar</button>
+          <button onclick="eliminarCliente(${index})" class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded">Eliminar</button>
+        </td>
+      `;
+      elements.tbodyClientes.appendChild(row);
+    });
+  }
+
+  function renderClientesSelect() {
+    elements.facturaCliente.innerHTML = '<option value="">-- Seleccionar cliente --</option>';
+    clientes.forEach((cliente, index) => {
+      const option = document.createElement('option');
+      option.value = index;
+      option.textContent = `${cliente.nombre} ${cliente.email ? '(' + cliente.email + ')' : ''}`;
+      elements.facturaCliente.appendChild(option);
+    });
+  }
+
+  // Funciones de Productos
+  function limpiarFormProducto() {
+    elements.inputProductoNombre.value = '';
+    elements.inputProductoPrecio.value = '';
+    elements.inputProductoCodigo.value = '';
+    elements.inputProductoStock.value = '';
+    elements.inputProductoDescripcion.value = '';
+    elements.productoFormTitle.textContent = 'Agregar Nuevo Producto';
+    elements.btnGuardarProducto.textContent = 'Guardar Producto';
+    elements.btnCancelarProducto.classList.add('hidden');
+    editandoProducto = null;
+  }
+
+  // Funciones CRUD para Productos
+  function guardarProducto() {
+    const nombre = elements.inputProductoNombre.value.trim();
+    const precio = parseFloat(elements.inputProductoPrecio.value);
+    const codigo = elements.inputProductoCodigo.value.trim();
+    const stock = parseInt(elements.inputProductoStock.value) || 0;
+    const descripcion = elements.inputProductoDescripcion.value.trim();
+
+    if (!nombre) {
+      alert('El nombre del producto es requerido');
+      return;
+    }
+    if (isNaN(precio) || precio < 0) {
+      alert('Precio inválido');
+      return;
+    }
+
+    const producto = { nombre, precio, codigo, stock, descripcion };
+
+    if (editandoProducto !== null) {
+      productos[editandoProducto] = producto;
+      alert('Producto actualizado correctamente');
+    } else {
+      productos.push(producto);
+      alert('Producto agregado correctamente');
+    }
+
+    guardarDatos();
+    renderProductos();
+    renderProductosSelect();
+    limpiarFormProducto();
+  }
+
+  function eliminarProducto(index) {
+    if (confirm('¿Está seguro de eliminar este producto?')) {
+      productos.splice(index, 1);
+      guardarDatos();
+      renderProductos();
+      renderProductosSelect();
+      alert('Producto eliminado correctamente');
+    }
+  }
+
+  function editarProducto(index) {
+    const producto = productos[index];
+    elements.inputProductoNombre.value = producto.nombre;
+    elements.inputProductoPrecio.value = producto.precio;
+    elements.inputProductoCodigo.value = producto.codigo || '';
+    elements.inputProductoStock.value = producto.stock || '';
+    elements.inputProductoDescripcion.value = producto.descripcion || '';
+    elements.productoFormTitle.textContent = 'Editar Producto';
+    elements.btnGuardarProducto.textContent = 'Actualizar Producto';
+    elements.btnCancelarProducto.classList.remove('hidden');
+    editandoProducto = index;
+  }
+
+  function renderProductos() {
+    elements.tbodyProductos.innerHTML = '';
+    if (productos.length === 0) {
+      elements.tbodyProductos.innerHTML = '<tr><td colspan="6" class="text-center py-4">No hay productos registrados</td></tr>';
+      return;
+    }
+
+    productos.forEach((producto, index) => {
+      const row = document.createElement('tr');
+      row.classList.add('hover:bg-gray-50');
+      row.innerHTML = `
+        <td class="border border-gray-300 px-4 py-2">${producto.codigo || '-'}</td>
+        <td class="border border-gray-300 px-4 py-2">${producto.nombre}</td>
+        <td class="border border-gray-300 px-4 py-2">$${producto.precio.toFixed(2)}</td>
+        <td class="border border-gray-300 px-4 py-2">${producto.stock || '-'}</td>
+        <td class="border border-gray-300 px-4 py-2">${producto.descripcion || '-'}</td>
+        <td class="border border-gray-300 px-4 py-2">
+          <button onclick="editarProducto(${index})" class="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded mr-1">Editar</button>
+          <button onclick="eliminarProducto(${index})" class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded">Eliminar</button>
+        </td>
+      `;
+      elements.tbodyProductos.appendChild(row);
+    });
+  }
+
+  function renderProductosSelect() {
+    elements.selectProductos.innerHTML = '<option value="">-- Seleccionar producto --</option>';
+    productos.forEach((producto, index) => {
+      const option = document.createElement('option');
+      option.value = index;
+      option.textContent = `${producto.nombre} - $${producto.precio.toFixed(2)}`;
+      elements.selectProductos.appendChild(option);
+    });
+  }
+
+  // Funciones de Facturas
+  function actualizarCodigoFactura() {
+    elements.codigoFactura.value = 'INV-' + codigoFactura.toString().padStart(6, '0');
+  }
+
+  function agregarLineaFactura(nombre = '', cantidad = 1, precio = 0) {
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td class="border border-gray-300 px-2 py-2">
+        <input type="text" class="w-full border border-gray-300 rounded px-2 py-1 productoNombre" value="${nombre}" placeholder="Nombre del producto" />
+      </td>
+      <td class="border border-gray-300 px-2 py-2">
+        <input type="number" min="1" class="w-full border border-gray-300 rounded px-2 py-1 productoCantidad" value="${cantidad}" />
+      </td>
+      <td class="border border-gray-300 px-2 py-2">
+        <input type="number" min="0" step="0.01" class="w-full border border-gray-300 rounded px-2 py-1 productoPrecio" value="${precio.toFixed(2)}" />
+      </td>
+      <td class="border border-gray-300 px-2 py-2 productoSubtotal text-right font-semibold">$0.00</td>
+      <td class="border border-gray-300 px-2 py-2 text-center">
+        <button class="text-red-600 hover:text-red-800 font-bold eliminarLinea">&times;</button>
+      </td>
+    `;
+
+    elements.tbodyFacturaProductos.appendChild(row);
+
+    // Event listeners
+    row.querySelectorAll('input').forEach(input => {
+      input.addEventListener('input', () => actualizarSubtotal(row));
+    });
+
+    row.querySelector('.eliminarLinea').addEventListener('click', () => {
+      row.remove();
+      actualizarTotalesFactura();
+    });
+
+    actualizarSubtotal(row);
+    actualizarTotalesFactura();
+  }
+
+  function actualizarSubtotal(row) {
+    const cantidad = parseInt(row.querySelector('.productoCantidad').value) || 0;
+    const precio = parseFloat(row.querySelector('.productoPrecio').value) || 0;
+    const subtotal = cantidad * precio;
+    row.querySelector('.productoSubtotal').textContent = '$' + subtotal.toFixed(2);
+    actualizarTotalesFactura();
+  }
+
+  function actualizarTotalesFactura() {
+    let subtotal = 0;
+    elements.tbodyFacturaProductos.querySelectorAll('tr').forEach(row => {
+      const subtotalText = row.querySelector('.productoSubtotal').textContent;
+      const subtotalValue = parseFloat(subtotalText.replace('$', '')) || 0;
+      subtotal += subtotalValue;
+    });
+
+    const descuentoPorcentaje = parseFloat(elements.inputDescuentoPorcentaje.value) || 0;
+    const descuentoMonto = parseFloat(elements.inputDescuentoMonto.value) || 0;
+    const impuestoPorcentaje = parseFloat(elements.inputImpuesto.value) || 0;
+
+    const descuentoPorPorcentaje = subtotal * (descuentoPorcentaje / 100);
+    const descuentoTotal = descuentoPorPorcentaje + descuentoMonto;
+    const subtotalConDescuento = subtotal - descuentoTotal;
+    const impuesto = subtotalConDescuento * (impuestoPorcentaje / 100);
+    const total = subtotalConDescuento + impuesto;
+
+    elements.subtotalFactura.textContent = '$' + subtotal.toFixed(2);
+    elements.descuentoFactura.textContent = '-$' + descuentoTotal.toFixed(2);
+    elements.impuestoFactura.textContent = '$' + impuesto.toFixed(2);
+    elements.totalFactura.textContent = '$' + total.toFixed(2);
+  }
+
+  // Funciones CRUD para Facturas
+  function guardarFactura() {
+    const clienteIndex = elements.facturaCliente.value;
+    if (clienteIndex === '') {
+      alert('Por favor seleccione un cliente');
+      return;
+    }
+
+    const cliente = clientes[clienteIndex];
+    const lineas = [];
+    let hayLineaValida = false;
+
+    elements.tbodyFacturaProductos.querySelectorAll('tr').forEach(row => {
+      const nombre = row.querySelector('.productoNombre').value.trim();
+      const cantidad = parseInt(row.querySelector('.productoCantidad').value);
+      const precio = parseFloat(row.querySelector('.productoPrecio').value);
+
+      if (nombre && !isNaN(cantidad) && cantidad > 0 && !isNaN(precio) && precio >= 0) {
+        hayLineaValida = true;
+        lineas.push({ nombre, cantidad, precio });
+      }
+    });
+
+    if (!hayLineaValida) {
+      alert('Por favor agregue al menos una línea de producto válida');
+      return;
+    }
+
+    const subtotal = parseFloat(elements.subtotalFactura.textContent.replace('$', '')) || 0;
+    const descuento = parseFloat(elements.descuentoFactura.textContent.replace('-$', '')) || 0;
+    const impuesto = parseFloat(elements.impuestoFactura.textContent.replace('$', '')) || 0;
+    const total = parseFloat(elements.totalFactura.textContent.replace('$', '')) || 0;
+    const fecha = new Date().toLocaleDateString();
+
+    const factura = {
+      codigo: elements.codigoFactura.value,
+      cliente,
+      productos: lineas,
+      subtotal,
+      descuento,
+      impuesto,
+      total,
+      fecha,
+      descuentoPorcentaje: parseFloat(elements.inputDescuentoPorcentaje.value) || 0,
+      descuentoMonto: parseFloat(elements.inputDescuentoMonto.value) || 0,
+      impuestoPorcentaje: parseFloat(elements.inputImpuesto.value) || 0
+    };
+
+    facturas.push(factura);
+    codigoFactura++;
+    guardarDatos();
+
+    // Limpiar formulario
+    elements.facturaCliente.value = '';
+    elements.tbodyFacturaProductos.innerHTML = '';
+    elements.inputDescuentoPorcentaje.value = '0';
+    elements.inputDescuentoMonto.value = '0';
+    elements.inputImpuesto.value = '0';
+    actualizarTotalesFactura();
+    actualizarCodigoFactura();
+
+    alert('Factura guardada y PDF generado');
+    generarPDF(factura);
+    renderFacturasGuardadas();
+  }
+
+  function eliminarFactura(index) {
+    if (confirm('¿Está seguro de eliminar esta factura?')) {
+      facturas.splice(index, 1);
+      guardarDatos();
+      renderFacturasGuardadas();
+      alert('Factura eliminada correctamente');
+    }
+  }
+
+  async function generarPDF(factura) {
+    const doc = new jsPDF();
+
+    // Título
+    doc.setFontSize(28);
+    doc.setFont("times", "bold");
+    doc.text("FACTURA", 14, 30);
+
+    // Fechas
+    doc.setFontSize(10);
+    doc.setFont("times", "normal");
+    doc.text(`Emitida: ${factura.fecha}`, 14, 38);
+    const fechaVencimiento = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString();
+    doc.text(`Vencimiento: ${fechaVencimiento}`, 80, 38);
+
+    // Logo
+    try {
+      doc.addImage(logoBase64, "JPEG", 140, 10, 50, 50);
+    } catch (e) {
+      console.log('Error al agregar logo:', e);
+    }
+
+    // Información del cliente
+    doc.setFontSize(12);
+    doc.setFont("times", "bold");
+    doc.text("FACTURAR A:", 14, 70);
+    doc.setFont("times", "normal");
+    doc.text(factura.cliente.nombre, 14, 78);
+    if (factura.cliente.email) doc.text(factura.cliente.email, 14, 84);
+    if (factura.cliente.telefono) doc.text(factura.cliente.telefono, 14, 90);
+    if (factura.cliente.direccion) doc.text(factura.cliente.direccion, 14, 96);
+
+    // Información de la empresa
+    doc.setFont("times", "bold");
+    doc.text("DE:", 120, 70);
+    doc.setFont("times", "normal");
+    doc.text("Mi Empresa", 120, 78);
+    doc.text("contacto@miempresa.com", 120, 84);
+    doc.text("+1 234 567 8900", 120, 90);
+    doc.text("123 Calle Principal, Ciudad", 120, 96);
+
+    // Código de factura
+    doc.setFont("times", "bold");
+    doc.text(`Código: ${factura.codigo}`, 14, 110);
+
+    // Tabla de productos
+    const headers = [["DESCRIPCIÓN", "CANT.", "PRECIO", "TOTAL"]];
+    const rows = factura.productos.map(p => [
+      p.nombre,
+      p.cantidad.toString(),
+      `$${p.precio.toFixed(2)}`,
+      `$${(p.cantidad * p.precio).toFixed(2)}`
+    ]);
+
+    doc.autoTable({
+      startY: 120,
+      head: headers,
+      body: rows,
+      styles: { fontSize: 11 },
+      headStyles: { fillColor: [235, 235, 235] },
+      theme: "grid",
+      margin: { left: 14, right: 14 }
+    });
+
+    // Totales
+    const finalY = doc.lastAutoTable.finalY + 10;
+
+    doc.setFont("times", "normal");
+    doc.text("Subtotal:", 140, finalY);
+    doc.text(`$${factura.subtotal.toFixed(2)}`, 180, finalY, null, null, "right");
+
+    doc.text("Descuento:", 140, finalY + 8);
+    doc.text(`-$${factura.descuento.toFixed(2)}`, 180, finalY + 8, null, null, "right");
+
+    doc.text("Impuesto:", 140, finalY + 16);
+    doc.text(`$${factura.impuesto.toFixed(2)}`, 180, finalY + 16, null, null, "right");
+
+    doc.setFont("times", "bold");
+    doc.setFontSize(14);
+    doc.text("TOTAL:", 140, finalY + 28);
+    doc.text(`$${factura.total.toFixed(2)}`, 180, finalY + 28, null, null, "right");
+
+    // Footer
+    doc.setFontSize(10);
+    doc.setFont("times", "normal");
+    doc.text("¡Gracias por su preferencia!", 14, 280);
+
+    // Guardar PDF
+    doc.save(`${factura.codigo}.pdf`);
+  }
+
+  // PDF Modal Functions
+  function showPDFModal() {
+    document.getElementById('pdfModal').classList.add('active');
+  }
+
+  function closePDFModal() {
+    document.getElementById('pdfModal').classList.remove('active');
+  }
+
+  function renderPDFPreview(factura) {
+    const doc = new jsPDF();
+    doc.text("Invoice Preview", 10, 10);
+    const pdfData = doc.output('datauristring');
+    document.getElementById('pdfPreview').innerHTML = `<iframe src="${pdfData}" width="100%" height="100%"></iframe>`;
+    showPDFModal();
+  }
+
+  document.getElementById('btnClosePDF').addEventListener('click', closePDFModal);
+  document.getElementById('btnDownloadPDF').addEventListener('click', () => {
+    const doc = new jsPDF();
+    doc.text("Invoice", 10, 10);
+    doc.save("invoice.pdf");
+  });
+  document.getElementById('btnPrintPDF').addEventListener('click', () => {
+    window.print();
+  });
+
+  // Event Listeners
+  elements.toggleSidebar.addEventListener('click', toggleSidebar);
+  elements.mobileMenuBtn.addEventListener('click', toggleSidebar);
+
+  // Clientes
+  elements.btnGuardarCliente.addEventListener('click', guardarCliente);
+  elements.btnCancelarCliente.addEventListener('click', limpiarFormCliente);
+
+  // Productos
+  elements.btnGuardarProducto.addEventListener('click', guardarProducto);
+  elements.btnCancelarProducto.addEventListener('click', limpiarFormProducto);
+
+  // Facturas
+  elements.selectProductos.addEventListener('change', function() {
+    const index = parseInt(this.value);
+    if (!isNaN(index)) {
+      const producto = productos[index];
+      agregarLineaFactura(producto.nombre, 1, producto.precio);
+      this.value = '';
+    }
+  });
+
+  elements.btnAgregarLinea.addEventListener('click', () => agregarLineaFactura());
+  elements.btnGuardarFactura.addEventListener('click', guardarFactura);
+
+  // Event listeners para descuentos e impuestos
+  [elements.inputDescuentoPorcentaje, elements.inputDescuentoMonto, elements.inputImpuesto].forEach(input => {
+    input.addEventListener('input', actualizarTotalesFactura);
+  });
+
+  // Company Details Logic
+  const companyDetails = {
+    name: '',
+    email: '',
+    phone: '',
+    address: '',
+    logo: ''
+  };
+
+  document.getElementById('btnSaveCompany').addEventListener('click', () => {
+    const name = document.getElementById('inputCompanyName').value.trim();
+    const email = document.getElementById('inputCompanyEmail').value.trim();
+    const phone = document.getElementById('inputCompanyPhone').value.trim();
+    const address = document.getElementById('inputCompanyAddress').value.trim();
+    const logoFile = document.getElementById('inputCompanyLogo').files[0];
+
+    if (!name || !email || !phone || !address) {
+      alert('Please fill in all required fields');
+      return;
+    }
+
+    companyDetails.name = name;
+    companyDetails.email = email;
+    companyDetails.phone = phone;
+    companyDetails.address = address;
+
+    if (logoFile) {
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        companyDetails.logo = e.target.result;
+        alert('Company details saved successfully');
+      };
+      reader.readAsDataURL(logoFile);
+    } else {
+      alert('Company details saved successfully');
+    }
+  });
+
+  // Función para exportar datos a un archivo JSON
+function exportarDatosJSON() {
+  const datos = {
+    clientes,
+    productos,
+    facturas,
+    codigoFactura
+  };
+
+  const blob = new Blob([JSON.stringify(datos, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+
+  const enlace = document.createElement('a');
+  enlace.href = url;
+  enlace.download = 'datos_facturacion.json';
+  enlace.click();
+
+  URL.revokeObjectURL(url);
+}
+
+// Agregar botón para exportar datos
+const exportarBtn = document.createElement('button');
+exportarBtn.textContent = 'Exportar Datos';
+exportarBtn.className = 'bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded font-medium';
+exportarBtn.addEventListener('click', exportarDatosJSON);
+
+document.body.appendChild(exportarBtn);
+
+  // Funciones globales (para onclick en HTML)
+  window.showSection = showSection;
+  window.editarCliente = editarCliente;
+  window.eliminarCliente = eliminarCliente;
+  window.editarProducto = editarProducto;
+  window.eliminarProducto = eliminarProducto;
+  window.generarPDF = generarPDF;
+
+  // Ajustar inicialización de datos
+  window.addEventListener('load', function() {
+    try {
+      cargarDatos();
+      renderClientes();
+      renderProductos();
+      renderClientesSelect();
+      renderProductosSelect();
+      renderFacturasGuardadas();
+      actualizarCodigoFactura();
+      actualizarDashboard();
+      showSection('dashboard');
+
+      // Responsive sidebar
+      function checkScreenSize() {
+        if (window.innerWidth < 768) {
+          sidebarVisible = false;
+          elements.sidebar.style.transform = 'translateX(-100%)';
+          elements.mainContent.style.marginLeft = '0';
+        } else {
+          sidebarVisible = true;
+          elements.sidebar.style.transform = 'translateX(0)';
+          elements.mainContent.style.marginLeft = '16rem';
+        }
+      }
+
+      checkScreenSize();
+      window.addEventListener('resize', checkScreenSize);
+    } catch (error) {
+      console.error('Error durante la inicialización:', error);
+    }
+  });
+</script>
+</body>
+</html>
