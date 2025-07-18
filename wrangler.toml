@@ -6,8 +6,8 @@ compatibility_date = "2023-12-18"
 ENVIRONMENT = "production"
 
 [[kv_namespaces]]
-binding = "BILL_KV"
-id = "b5f8a23e7d06c2de5ef515ae93e16016"
+binding = "Bill_kv"
+id = "1f02baeb34aa482d93f2acc7caaa407e"
 
 [build]
 command = "npm run build"
