@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Factura Simple</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+<style>
+  tbody::-webkit-scrollbar {
+    height: 6px;
+  }
+  tbody::-webkit-scrollbar-thumb {
+    background-color: #a0aec0;
+    border-radius: 3px;
+  }
+</style>
+</head>
+<body class="bg-gray-100 min-h-screen p-4">
+
+<div class="max-w-5xl mx-auto bg-white p-6 rounded shadow">
+  <h1 class="text-3xl font-bold mb-6 text-center">App Simple de Facturación</h1>
+
+  <!-- Menú de Navegación -->
+  <nav class="flex justify-center mb-6 border-b">
+    <button data-section="configuracion" class="nav-btn px-4 py-2 text-gray-600 hover:text-blue-600">Configuración</button>
+    <button data-section="clientes" class="nav-btn px-4 py-2 text-gray-600 hover:text-blue-600">Clientes</button>
+    <button data-section="productos" class="nav-btn px-4 py-2 text-gray-600 hover:text-blue-600">Productos</button>
+    <button data-section="factura" class="nav-btn px-4 py-2 text-gray-600 hover:text-blue-600">Nueva Factura</button>
+    <button data-section="historial" class="nav-btn px-4 py-2 text-gray-600 hover:text-blue-600">Historial</button>
+  </nav>
+
+  <!-- Contenido dinámico -->
+  <main id="main-content">
+    <!-- Sección Configuración -->
+    <section id="configuracion-section" class="content-section mb-6 hidden">
+      <h2 class="text-xl font-semibold mb-2">Configuración de la Empresa</h2>
+      <div class="mb-4">
+        <label class="font-semibold" for="nombreEmpresa">Nombre de la Empresa</label>
+        <input id="nombreEmpresa" type="text" class="w-full border border-gray-300 rounded px-3 py-2" placeholder="Nombre de la empresa" />
+      </div>
+      <div class="mb-4">
+        <label class="font-semibold" for="logoEmpresa">Logotipo de la Empresa</label>
+        <input id="logoEmpresa" type="file" accept="image/*" class="w-full border border-gray-300 rounded px-3 py-2" />
+      </div>
+      <button id="btnGuardarEmpresa" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">Guardar Configuración</button>
+    </section>
+
+    <!-- Sección Clientes -->
+    <section id="clientes-section" class="content-section mb-6 hidden">
+      <h2 class="text-xl font-semibold mb-2">Clientes</h2>
+      <div class="flex gap-2 mb-4">
+        <input id="inputClienteNombre" type="text" placeholder="Nombre cliente" class="flex-grow border border-gray-300 rounded px-3 py-2" />
+        <input id="inputClienteEmail" type="email" placeholder="Email cliente (opcional)" class="flex-grow border border-gray-300 rounded px-3 py-2" />
+        <button id="btnAgregarCliente" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">Agregar</button>
+      </div>
+    </section>
+
+    <!-- Sección Productos -->
+    <section id="productos-section" class="content-section mb-6 hidden">
+      <h2 class="text-xl font-semibold mb-2">Productos</h2>
+      <div class="flex gap-2 mb-4">
+        <input id="inputProductoNombre" type="text" placeholder="Nombre producto" class="flex-grow border border-gray-300 rounded px-3 py-2" />
+        <input id="inputProductoPrecio" type="number" min="0" step="0.01" placeholder="Precio unitario" class="w-40 border border-gray-300 rounded px-3 py-2" />
+        <button id="btnAgregarProducto" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">Agregar</button>
+      </div>
+    </section>
+
+    <!-- Sección Factura -->
+    <section id="factura-section" class="content-section mb-6 hidden">
+      <h2 class="text-xl font-semibold mb-2">Nueva Factura</h2>
+      <div class="mb-4">
+        <label class="font-semibold" for="codigoFactura">Código Factura</label>
+        <input id="codigoFactura" type="text" readonly class="w-full border border-gray-300 rounded px-3 py-2 bg-gray-200 cursor-not-allowed" />
+      </div>
+      <div class="mb-4">
+        <label class="font-semibold" for="facturaCliente">Cliente</label>
+        <select id="facturaCliente" class="w-full border border-gray-300 rounded px-3 py-2" aria-label="Cliente para factura">
+          <option value="">-- Selecciona cliente --</option>
+        </select>
+      </div>
+      <div class="overflow-x-auto mb-4">
+        <table class="w-full table-auto border-collapse border border-gray-300 text-sm">
+          <thead>
+            <tr class="bg-gray-200">
+              <th class="border border-gray-300 px-2 py-1">Producto</th>
+              <th class="border border-gray-300 px-2 py-1 w-20">Cantidad</th>
+              <th class="border border-gray-300 px-2 py-1 w-28">Precio Unitario</th>
+              <th class="border border-gray-300 px-2 py-1 w-28">Subtotal</th>
+              <th class="border border-gray-300 px-2 py-1 w-12">Eliminar</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyFacturaProductos" class="max-h-60 overflow-y-auto"></tbody>
+        </table>
+      </div>
+      <button id="btnAgregarLinea" class="mb-4 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded">Agregar línea producto</button>
+      <button id="btnGuardarFactura" class="w-full bg-green-700 hover:bg-green-800 text-white px-4 py-3 rounded font-semibold">Guardar Factura y Generar PDF</button>
+    </section>
+
+    <!-- Sección Historial -->
+    <section id="historial-section" class="content-section mb-6 hidden">
+      <h2 class="text-xl font-semibold mb-2">Facturas Guardadas</h2>
+      <div class="overflow-x-auto max-h-80">
+        <table class="w-full table-auto border-collapse border border-gray-300 text-sm">
+          <thead>
+            <tr class="bg-gray-200">
+              <th class="border border-gray-300 px-2 py-1 w-32">Código</th>
+              <th class="border border-gray-300 px-2 py-1">Cliente</th>
+              <th class="border border-gray-300 px-2 py-1 w-28">Fecha</th>
+              <th class="border border-gray-300 px-2 py-1 w-28">Total</th>
+              <th class="border border-gray-300 px-2 py-1 w-24">Acción</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyFacturasGuardadas"></tbody>
+        </table>
+      </div>
+    </section>
+    
+    <!-- Visor de PDF -->
+    <section id="pdf-viewer-section" class="content-section mb-6 hidden">
+        <h2 class="text-xl font-semibold mb-2">Vista Previa de Factura</h2>
+        <iframe id="visorPDF" class="w-full h-96 border border-gray-300 rounded" src="" frameborder="0"></iframe>
+    </section>
+
+  </main>
+</div>
+
+<script type="module" src="/frontend/main.js"></script>
+</body>
+</html>

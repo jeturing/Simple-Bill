@@ -1,4 +1,4 @@
-name = "simple-bill-worker"
+name = "bill"
 main = "src/index.js"
 compatibility_date = "2023-12-18"
 
@@ -6,13 +6,8 @@ compatibility_date = "2023-12-18"
 ENVIRONMENT = "production"
 
 [[kv_namespaces]]
-binding = "Bill_kv"
+binding = "BILL_KV"
 id = "1f02baeb34aa482d93f2acc7caaa407e"
 
-[build]
-command = "npm run build"
-cwd = "./"
-watch_dir = "src"
-
-# wrangler.toml
-name = 'bill'
+[site]
+bucket = "./dist"
